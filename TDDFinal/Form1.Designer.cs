@@ -34,7 +34,7 @@
             this.btnShowReport = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.nudYear)).BeginInit();
             this.SuspendLayout();
-            // 
+            //
             // 🔥 Basic form styling
             this.BackColor = System.Drawing.Color.FromArgb(245, 245, 245); // light gray
             this.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
