@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using ClosedXML.Excel;
-using System.IO;
 
 namespace TDDFinal
 {
@@ -83,28 +83,6 @@ namespace TDDFinal
             }
         }
 
-        private void btnGenerateRandom_Click(object sender, EventArgs e)
-        {
-            var types = new string[] { "Bus", "Commercial", "Private", "Truck" };
-            var statuses = new string[] { "OK", "Needs Service" };
-
-            for (int i = 0; i < 10000; i++)
-            {
-                var vehicle = new Vehicle(
-                    vehicleNumber: random.Next(100000, 999999).ToString(),
-                    model: "Model " + random.Next(1, 100),
-                    manufacturer: "Manufacturer " + random.Next(1, 50),
-                    year: random.Next(2000, 2026),
-                    type: types[random.Next(types.Length)],
-                    maintenanceStatus: statuses[random.Next(statuses.Length)]
-                );
-                vehicles.Add(vehicle);
-            }
-
-            SaveAllVehiclesToExcel();
-            MessageBox.Show("10,000 vehicles generated and saved!");
-        }
-
         private void SaveAllVehiclesToExcel()
         {
             using (var workbook = new XLWorkbook())
@@ -133,6 +111,28 @@ namespace TDDFinal
             }
         }
 
+        private void btnGenerateRandom_Click(object sender, EventArgs e)
+        {
+            var types = new string[] { "Bus", "Commercial", "Private", "Truck" };
+            var statuses = new string[] { "OK", "Needs Service" };
+
+            for (int i = 0; i < 10000; i++)
+            {
+                var vehicle = new Vehicle(
+                    vehicleNumber: random.Next(100000, 999999).ToString(),
+                    model: "Model " + random.Next(1, 100),
+                    manufacturer: "Manufacturer " + random.Next(1, 50),
+                    year: random.Next(2000, 2026),
+                    type: types[random.Next(types.Length)],
+                    maintenanceStatus: statuses[random.Next(statuses.Length)]
+                );
+                vehicles.Add(vehicle);
+            }
+
+            SaveAllVehiclesToExcel();
+            MessageBox.Show("10,000 vehicles generated and saved!");
+        }
+
         private void btnShowReport_Click(object sender, EventArgs e)
         {
             if (!File.Exists(filePath))
@@ -141,41 +141,50 @@ namespace TDDFinal
                 return;
             }
 
-            var counts = new Dictionary<string, int>
-    {
-        { "Bus", 0 },
-        { "Commercial", 0 },
-        { "Private", 0 },
-        { "Truck", 0 }
-    };
-            int totalVehicles = 0;
+            List<Vehicle> loadedVehicles;
 
             using (var workbook = new XLWorkbook(filePath))
             {
                 var worksheet = workbook.Worksheet("Vehicles");
-                var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header
-
-                foreach (var row in rows)
-                {
-                    string type = row.Cell(5).GetString();
-                    if (counts.ContainsKey(type))
-                    {
-                        counts[type]++;
-                    }
-                    totalVehicles++;
-                }
+                loadedVehicles = worksheet.RangeUsed()
+                    .RowsUsed()
+                    .Skip(1)
+                    .Select(r => new Vehicle(
+                        r.Cell(1).GetString(),
+                        r.Cell(2).GetString(),
+                        r.Cell(3).GetString(),
+                        int.Parse(r.Cell(4).GetString()),
+                        r.Cell(5).GetString(),
+                        r.Cell(6).GetString()
+                    )).ToList();
             }
 
-            string report = $"Total Vehicles: {totalVehicles}\n" +
-                            $"Bus: {counts["Bus"]}\n" +
-                            $"Commercial: {counts["Commercial"]}\n" +
-                            $"Private: {counts["Private"]}\n" +
-                            $"Truck: {counts["Truck"]}";
+            if (loadedVehicles.Count == 0)
+            {
+                MessageBox.Show("No vehicles to report.");
+                return;
+            }
 
+            // Manual bubble sort
+            var start = DateTime.Now;
+            var sorted = SortHelper.BubbleSort(loadedVehicles);
+            var duration = DateTime.Now - start;
+
+            int totalVehicles = sorted.Count;
+            double avgYear = AverageHelper.CalculateAverageYear(sorted);
+            int needsServiceCount = MaintenanceHelper.CountNeedsService(sorted);
+
+            string report = $"Total Vehicles: {totalVehicles}\n" +
+                            $"Average Production Year: {avgYear:F2}\n" +
+                            $"'Needs Service' Vehicles: {needsServiceCount}\n" +
+                            $"Sorting Duration: {duration.TotalMilliseconds:F2} ms\n\n";
+
+            report += "Top 20 vehicles sorted by year (descending):\n";
+            foreach (var v in sorted)
+            {
+                report += $"{v.Year} - {v.Manufacturer} {v.Model} [{v.Type}] - Status: {v.MaintenanceStatus}\n";
+            }
             MessageBox.Show(report, "Vehicle Report");
         }
-
-
-
     }
 }
